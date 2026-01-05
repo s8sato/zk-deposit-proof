@@ -154,8 +154,12 @@ These differences are **unavoidable** due to framework semantics:
 ✅ **Same constraint count (conceptually)**
 ⚠️ **Different hash function** (acceptable for PoC per specification)
 
-## Next Steps
+## Additional Documentation
 
-This completes STEP 4 (arkworks implementation). The implementation proves the **exact same statement** as the Noir circuit with unavoidable but semantically insignificant framework-level differences.
+This arkworks implementation is part of a complete comparative analysis demonstrating ZK proof system choice as an engineering trade-off.
 
-For STEP 5 (benchmarking), both implementations can be compared on constraint count and proving time.
+**For the complete picture**, see:
+- Top-level [`README.md`](../README.md) for adoption decision and framework comparison
+- [`COMPARISON.md`](../COMPARISON.md) for detailed Noir vs arkworks analysis
+- [`arkworks/BENCHMARKS.md`](../arkworks/BENCHMARKS.md) for complete performance metrics (642 constraints, 5.5ms proving)
+- [`noir_circuit/`](../noir_circuit/) for the equivalent Noir/Ultra Honk implementation proving the same statement

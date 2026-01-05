@@ -166,6 +166,23 @@ The arkworks implementation uses:
 
 This results in a circuit with comparable constraint count to the Noir version, though exact numbers differ due to different compilation strategies.
 
-## Next Steps
+## Benchmarking
 
-This completes STEP 4 (arkworks implementation). The implementation faithfully reproduces the Noir circuit constraints with unavoidable but semantically insignificant differences due to framework-level APIs.
+To run the automated benchmark:
+
+```bash
+cargo run --release --bin benchmark
+```
+
+See [`BENCHMARKS.md`](BENCHMARKS.md) for detailed performance analysis:
+- Circuit: 642 R1CS constraints
+- Setup: 10.6ms, Proving: 5.5ms, Verification: 1.5ms
+- Proof size: 128 bytes (Groth16 constant-size)
+
+## Additional Documentation
+
+This arkworks implementation is part of a complete comparative analysis. For the full picture:
+- Top-level [`README.md`](../README.md) for adoption decision (recommends Noir for this use case)
+- [`COMPARISON.md`](../COMPARISON.md) for detailed framework comparison
+- [`ARKWORKS_IMPLEMENTATION.md`](../ARKWORKS_IMPLEMENTATION.md) for implementation summary
+- [`noir_circuit/`](../noir_circuit/) for the equivalent Noir implementation proving the same statement

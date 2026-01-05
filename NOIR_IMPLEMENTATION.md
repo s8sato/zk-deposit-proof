@@ -98,10 +98,11 @@ The commitment binding is enforced via a binary Merkle tree:
 
 ```
 Expression Width: 725
-ACIR Opcodes: 80
+ACIR Opcodes: 725
+Circuit Size: 28,688 gates
 ```
 
-This is a small, efficient circuit suitable for proof generation with standard hardware.
+This is a small, efficient circuit suitable for proof generation with standard hardware. See `noir_circuit/BENCHMARKS.md` for detailed performance metrics.
 
 ## What This Does NOT Enforce
 
@@ -128,8 +129,11 @@ Four test cases verify correct behavior:
 
 All tests pass successfully.
 
-## Next Steps
+## Additional Documentation
 
-This completes STEP 2 (Noir implementation).
+This Noir implementation is part of a complete comparative analysis demonstrating ZK proof system choice as an engineering trade-off.
 
-The next step would be STEP 3: implementing the same statement in arkworks/Groth16 to demonstrate cross-system compatibility of the specification.
+**For the complete picture**, see:
+- Top-level [`README.md`](../README.md) for adoption decision and framework comparison
+- [`COMPARISON.md`](../COMPARISON.md) for detailed Noir vs arkworks analysis
+- [`arkworks/`](../arkworks/) for the equivalent Groth16 implementation proving the same statement
