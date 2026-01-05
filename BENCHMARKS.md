@@ -14,58 +14,76 @@ This document provides a quick comparison of benchmark results for both implemen
 
 ## Benchmark Results Comparison
 
-| Metric | Noir (Ultra Honk) | Arkworks (Groth16) | Notes |
-|--------|-------------------|---------------------|-------|
+| Metric | Noir (Ultra Honk) | Arkworks (Groth16) | Ratio (Noir/Ark) |
+|--------|-------------------|---------------------|------------------|
 | **Circuit Complexity** | | | |
-| Circuit size | 28,688 gates | 642 R1CS constraints | ⚠️ Different metrics, not directly comparable |
-| ACIR opcodes | 725 | N/A | Noir-specific intermediate representation |
+| Circuit size | 28,688 gates | 642 R1CS constraints | ~45:1 (different metrics) |
+| ACIR opcodes | 725 | N/A | Noir-specific |
 | Witness variables | N/A | 640 | Arkworks-specific |
 | Public inputs | 2 | 1 | Minor classification difference |
 | **Performance** | | | |
-| Setup time | 43 ms (VK gen) | 10.6 ms (PK+VK) | Groth16 faster for setup |
-| Proving time | ⚠️ Not measured | 5.5 ms | Noir blocked by tooling issue |
-| Verification time | ⚠️ Not measured | 1.5 ms | Noir blocked by tooling issue |
+| Setup time | 43 ms (VK gen) | 10.6 ms (PK+VK) | 4.1x slower |
+| Proving time | 271 ms | 5.5 ms | **49x slower** |
+| Verification time | 13 ms | 1.5 ms | 8.6x slower |
 | **Artifact Sizes** | | | |
-| Proof size | ⚠️ Not measured | 128 bytes | Groth16 constant-size |
-| Verification key | 3.6 KB | 296 bytes | VK size differs by proving system |
-| Compiled circuit | 72 KB | N/A | Noir-specific artifact |
-| Proving key | N/A | 135.8 KB | Arkworks-specific artifact |
+| Proof size | 16,256 bytes (~16 KB) | 128 bytes | **127x larger** |
+| Verification key | 3,680 bytes (~3.6 KB) | 296 bytes | 12.4x larger |
+| Compiled circuit | 72 KB | N/A | Noir-specific |
+| Proving key | N/A | 135.8 KB | Arkworks-specific |
 
 ## Key Findings
 
 ### What We Can Conclude
 
-1. **Both are "small" circuits**: 28K gates (Noir) and 642 constraints (arkworks) are well within commodity hardware capabilities
-2. **Both are "fast enough"**: Sub-10ms performance (where measured) is more than adequate for infrequent attestation proofs
-3. **Proof sizes are negligible**: <1KB in both cases means minimal on-chain storage cost
-4. **Setup times are fast**: Both complete setup in <50ms
+1. **Both circuits are "small"**: 28K gates (Noir) and 642 constraints (arkworks) are well within commodity hardware capabilities
+2. **Groth16 is significantly faster**: 49x faster proving (5.5ms vs 271ms), 8.6x faster verification (1.5ms vs 13ms)
+3. **Groth16 proofs are much smaller**: 128 bytes vs 16KB (127x difference)
+4. **Both are "fast enough" for this use case**: Even 271ms proving is imperceptible for infrequent (daily/weekly) attestations
+5. **Setup times are comparable**: Both complete in <50ms (43ms vs 10.6ms)
 
-### What We Cannot Conclude
+### Performance Trade-offs
 
-1. **Relative proving performance**: Noir's proving time not measured due to tooling compatibility issue
-2. **Constraint efficiency**: Gate count vs R1CS constraints are different compilation stages, not directly comparable
-3. **Production readiness**: Both implementations use simplified hash functions for this PoC
+**Groth16 advantages** (arkworks):
+- ✅ 49x faster proving (5.5ms vs 271ms)
+- ✅ 127x smaller proofs (128 bytes vs 16KB)
+- ✅ Constant-size proofs regardless of circuit size
+- ✅ Battle-tested, production-ready
 
-### Why Performance Differences Don't Matter Here
+**Ultra Honk advantages** (Noir):
+- ✅ No trusted setup required (transparent)
+- ✅ Better for recursion/proof composition (theoretical)
+- ✅ More modern proving system (potential future optimizations)
+
+### Why Performance Differences Don't Change the Recommendation
 
 For a **tokenized deposit solvency proof** generated daily or weekly:
-- Sub-10ms proving time difference: Irrelevant (network latency dominates)
-- Proof size difference (<1KB): Negligible on-chain cost (<$1/year)
-- Setup time difference (30ms): One-time cost, amortized across all proofs
 
-**The deciding factor is correctness assurance**, not marginal performance differences. See the [Adoption Decision](./README.md#adoption-decision) for full reasoning.
+**Proving time** (271ms vs 5.5ms):
+- Daily attestation: 271ms is imperceptible to users
+- Network latency (100-500ms) dominates
+- Difference is irrelevant for infrequent use
+
+**Proof size** (16KB vs 128 bytes):
+- On-chain cost at current Ethereum prices (~30 gwei, $3000 ETH):
+  - Noir: ~$1.50-$3.00 per proof
+  - Arkworks: ~$0.01-$0.02 per proof
+- Annual cost (daily proofs): ~$500-$1000 vs ~$4-$7
+- For infrequent attestations, cost difference is acceptable
+
+**The deciding factor remains correctness assurance**: Noir's 57-line circuit is easier to audit than arkworks' 155-line manual R1CS construction. See the [Adoption Decision](./README.md#adoption-decision) for full reasoning.
 
 ## Detailed Benchmark Reports
 
 ### Noir Benchmarks
 - **Location**: [`noir_circuit/BENCHMARKS.md`](./noir_circuit/BENCHMARKS.md)
-- **Status**: Partial (circuit complexity and VK generation measured)
-- **Notable limitation**: Proving/verification blocked by barretenberg compatibility issue
-- **Verdict**: Available metrics sufficient for PoC goals
+- **Status**: ✅ Complete end-to-end benchmarks
+- **Measurements**: Setup (43ms), Proving (271ms), Verification (13ms)
+- **Automated tool**: `./bench_prove.sh`
+- **Note**: Initial attempts failed due to incorrect witness file path; resolved by using `noir_circuit.gz`
 
 ### Arkworks Benchmarks
 - **Location**: [`arkworks/BENCHMARKS.md`](./arkworks/BENCHMARKS.md)
-- **Status**: Complete end-to-end benchmarks
+- **Status**: ✅ Complete end-to-end benchmarks
 - **Measurements**: Setup (10.6ms), Proving (5.5ms), Verification (1.5ms)
 - **Automated tool**: `cargo run --release --bin benchmark`
 

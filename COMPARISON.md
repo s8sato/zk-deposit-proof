@@ -27,11 +27,11 @@ This document compares the Noir and arkworks (Groth16) implementations of the is
 | Witness variables | N/A | 640 | arkworks-specific |
 | Public inputs | 2 (`token_supply`, `commitment`) | 1 (`commitment`) | Minor classification difference |
 | **Performance** | | | |
-| Setup time | 43 ms | 10.6 ms | Groth16 setup is faster |
-| Proving time | **Not measured** | 5.5 ms | Noir blocked by tooling issue |
-| Verification time | **Not measured** | 1.5 ms | Noir blocked by tooling issue |
+| Setup time | 43 ms | 10.6 ms | Groth16 setup is 4x faster |
+| Proving time | 271 ms | 5.5 ms | Groth16 is 49x faster |
+| Verification time | 13 ms | 1.5 ms | Groth16 is 8.6x faster |
 | **Artifact Sizes** | | | |
-| Proof size | **Not measured** | 128 bytes | Groth16 has constant-size proofs |
+| Proof size | 16,256 bytes (~16 KB) | 128 bytes | Groth16 proofs are 127x smaller |
 | Verification key | 3.6 KB | 296 bytes | VK size differs by proving system |
 | Proving key | N/A | 135.8 KB | arkworks-specific artifact |
 | Compiled circuit | 72 KB | N/A | Noir-specific artifact |
@@ -144,34 +144,42 @@ sum_field.enforce_equal(&token_plus_diff_field)?;
 
 **Impact**: For a 642-constraint circuit, Groth16 is perfectly adequate. The PoC goals don't require Ultra Honk's advantages.
 
-### 4. Proving/Verification Time (UNKNOWN for Noir)
+### 4. Proving/Verification Time (MEASURED)
 
-**Measured for arkworks**:
+**Noir (Ultra Honk)**:
+- Proving: 271 ms
+- Verification: 13 ms
+
+**Arkworks (Groth16)**:
 - Proving: 5.5 ms
 - Verification: 1.5 ms
 
-**Why we can't compare**:
-- Noir's barretenberg backend had tooling issues
-- Likely would be similar (<10ms proving, <5ms verification) based on circuit size
-- Both are fast enough for production use
+**Performance difference**:
+- Groth16 is 49x faster at proving
+- Groth16 is 8.6x faster at verification
 
-**Impact**: Insufficient data, but both are clearly "fast enough" for this use case.
+**Impact**: Despite the significant performance gap, both are "fast enough" for this use case. For infrequent attestations (daily/weekly), 271ms proving time is imperceptible to users, and network latency (100-500ms) dominates total time.
 
 ## What Differences Are Irrelevant?
 
-### 1. Absolute Proving Time (<10ms difference)
+### 1. Absolute Proving Time (271ms vs 5.5ms)
 
-**Why irrelevant**:
+**Why the 49x difference is still irrelevant**:
 - For tokenized deposits, proofs are generated infrequently (daily/weekly attestations)
-- Sub-10ms differences don't impact user experience
-- Network latency dominates (hundreds of milliseconds)
-- Both are "fast enough"
+- 271ms is imperceptible to users in a daily/weekly cadence
+- Network latency (100-500ms) dominates total time
+- Both are "fast enough" for this specific use case
+- Would only matter for high-throughput applications (not the intended use)
 
-### 2. Proof Size (if both < 1 KB)
+### 2. Proof Size (16 KB vs 128 bytes)
 
-**Why irrelevant**:
-- 128 bytes (Groth16) is already tiny
-- On-chain storage cost difference is negligible (<$1 per year on Ethereum)
+**Why the 127x difference is acceptable**:
+- On-chain storage cost at Ethereum prices (~30 gwei, $3000 ETH):
+  - Noir: ~$1.50-$3.00 per proof
+  - Arkworks: ~$0.01-$0.02 per proof
+- Annual cost for daily proofs: ~$500-$1000 vs ~$4-$7
+- For infrequent attestations, this cost difference is acceptable
+- For off-chain verification, size difference is completely irrelevant
 - Both fit comfortably in a single blockchain transaction
 
 ### 3. VK Size Difference (3.6 KB vs 296 bytes)
@@ -249,9 +257,9 @@ sum_field.enforce_equal(&token_plus_diff_field)?;
 
 1. **Noir wins on ease of verification**: The 57-line core circuit is obviously correct. A reviewer can match it to the spec in minutes. The 155-line arkworks circuit requires careful R1CS constraint analysis.
 
-2. **Proving performance is irrelevant**: Both are sub-10ms (based on arkworks measurement + circuit size). Attestation proofs are generated infrequently. A 5ms difference is meaningless.
+2. **Proving performance difference exists but is irrelevant**: Groth16 is 49x faster (5.5ms vs 271ms). However, for infrequent attestation proofs (daily/weekly), 271ms is imperceptible to users. Network latency dominates.
 
-3. **Proof size is irrelevant**: Both are tiny (<1 KB). On-chain cost difference is cents per year.
+3. **Proof size difference exists but is acceptable**: Groth16 proofs are 127x smaller (128 bytes vs 16 KB). On-chain cost difference is ~$500-$1000/year vs ~$4-$7/year for daily proofs. For infrequent attestations, this is acceptable.
 
 4. **Hash function matters in production**: Neither implementation is production-ready as-is (Noir uses Pedersen, arkworks uses simplified addition). Both need Poseidon2. This is a PoC limitation, not a framework limitation.
 
@@ -264,28 +272,33 @@ sum_field.enforce_equal(&token_plus_diff_field)?;
 - **Noir**: Fast to write, easy to review, hard to mess up. But you're locked into the DSL's abstractions.
 - **Arkworks**: Full control, battle-tested, production-ready. But you must manually construct every constraint.
 
-**For THIS use case** (simple solvency proof, correctness-first, research context):
+**For THIS use case** (simple solvency proof, correctness-first, infrequent attestations):
 - Noir's ergonomics are a significant advantage
 - arkworks' maturity is irrelevant (circuit is simple, risk is low)
-- The time saved in development and review outweighs any theoretical performance difference
+- The time saved in development and review outweighs the 49x performance difference
+- 271ms proving time is imperceptible for daily/weekly cadence
+- $500-$1000/year on-chain cost is acceptable for this application
 
-**For a DIFFERENT use case** (novel cryptographic construction, large circuit, production deployment):
-- arkworks' control and maturity might dominate
-- The extra development time might be justified
-- Performance differences might matter at scale
+**For a DIFFERENT use case** (high-throughput, cost-sensitive, large-scale):
+- arkworks' performance would dominate (49x faster, 127x smaller proofs)
+- The extra development time would be justified by operational savings
+- Groth16's constant-size proofs would be critical for high-frequency on-chain storage
 
 ## Summary: What We Learned
 
 ### Differences That Matter:
 1. ✅ **Developer ergonomics**: Noir is 2.7x more concise and easier to review
 2. ✅ **Proving system maturity**: Groth16 is production-ready; Ultra Honk is experimental
-3. ⚠️ **Hash function**: Both need fixing for production (not a framework issue)
+3. ✅ **Performance gap**: Groth16 is 49x faster proving, 127x smaller proofs (matters for high-throughput)
+4. ⚠️ **Hash function**: Both need fixing for production (not a framework issue)
 
-### Differences That Don't Matter:
+### Differences That Don't Matter (for THIS use case):
 1. ❌ **Constraint count**: Different metrics, not comparable
-2. ❌ **Proving time**: Both are <10ms (fast enough)
-3. ❌ **Proof size**: Both are <1KB (tiny enough)
+2. ❌ **Proving time**: 271ms is imperceptible for infrequent (daily/weekly) attestations
+3. ❌ **Proof size**: $500-$1000/year on-chain cost is acceptable for this application
 4. ❌ **Artifact sizes**: All are negligible for modern systems
+
+**Critical insight**: Performance differences (49x, 127x) are **objectively significant** but **subjectively irrelevant** for this specific use case (infrequent attestations). They would matter for different applications.
 
 ### The Real Lesson:
 
@@ -296,6 +309,6 @@ The choice between Noir and arkworks **for this specific proof** comes down to:
 
 Neither is "better"—they make different trade-offs for different priorities.
 
-For a **finance-oriented PoC** proving a **simple solvency constraint**, Noir's ergonomics are a clear win. For a **production deployment** requiring **maximum assurance**, arkworks' maturity is compelling.
+For a **finance-oriented PoC** proving a **simple solvency constraint** with **infrequent attestations**, Noir's ergonomics are a clear win despite the 49x performance gap. For a **high-throughput production deployment** requiring **maximum performance**, arkworks' speed and proof size would be compelling.
 
-The PoC successfully demonstrates that **both can enforce the same responsibility boundary**. The framework choice is an engineering trade-off, not a correctness question.
+The PoC successfully demonstrates that **both can enforce the same responsibility boundary**. The framework choice is an engineering trade-off based on use-case priorities (correctness assurance vs performance), not a correctness question.

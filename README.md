@@ -70,11 +70,12 @@ This repository contains **two independent implementations** of the identical st
 
 ## Benchmarks
 
-### Noir (Partial)
+### Noir (Complete)
 - **Circuit size**: 28,688 gates (compiled)
 - **Setup time**: 43 ms (VK generation)
-- **Proving/verification**: Not measured (tooling compatibility issue)
-- **Artifacts**: 72KB circuit, 3.6KB VK
+- **Proving time**: 271 ms
+- **Verification time**: 13 ms
+- **Proof size**: 16,256 bytes (~16 KB)
 
 ### Arkworks (Complete)
 - **Constraint count**: 642 R1CS constraints
@@ -83,7 +84,7 @@ This repository contains **two independent implementations** of the identical st
 - **Verification time**: 1.5 ms
 - **Proof size**: 128 bytes (Groth16 constant-size)
 
-**Key finding**: Both are "small" and "fast enough" for this use case. Sub-10ms proving time is irrelevant for infrequent attestation proofs (daily/weekly). Proof sizes (<1KB) have negligible on-chain cost.
+**Key finding**: Groth16 is 49x faster at proving and has 127x smaller proofs. However, both are "fast enough" for this use case—271ms proving time is imperceptible for infrequent attestation proofs (daily/weekly), and even 16KB proofs have acceptable on-chain cost (~$1-3 per proof) for infrequent use.
 
 **Full benchmarks**:
 - Noir: [`noir_circuit/BENCHMARKS.md`](./noir_circuit/BENCHMARKS.md)
@@ -128,14 +129,26 @@ For a **finance-oriented solvency proof**, the single most important property is
 
 For a system where over-issuance could cause financial collapse, **semantic clarity is not negotiable**.
 
-#### 2. Performance is Irrelevant Here
+#### 2. Performance Gap is Significant but Irrelevant for This Use Case
 
-Both implementations prove in <10ms (based on arkworks measurement + Noir's circuit size). For a proof generated daily or weekly:
-- 5ms vs 10ms difference: meaningless
-- Network latency (100-500ms): dominates
-- User experience: unaffected
+**Measured performance**:
+- Noir (Ultra Honk): 271ms proving, 13ms verification, 16KB proofs
+- Arkworks (Groth16): 5.5ms proving, 1.5ms verification, 128-byte proofs
+- **Gap**: Groth16 is 49x faster and produces 127x smaller proofs
 
-The marginal performance advantage of Groth16 does not outweigh Noir's correctness assurance for this use case.
+**Why this doesn't change the recommendation**:
+
+For a proof generated **daily or weekly**:
+- **271ms proving time**: Imperceptible to users in this cadence
+- **Network latency (100-500ms)**: Dominates total time
+- **User experience**: Completely unaffected
+
+For **on-chain storage cost**:
+- Noir: ~$1.50-$3.00 per proof (~$500-$1000/year for daily proofs)
+- Arkworks: ~$0.01-$0.02 per proof (~$4-$7/year for daily proofs)
+- For a financial institution, this cost difference is acceptable
+
+**The trade-off**: Groth16's performance advantage does not outweigh Noir's correctness assurance (hours of audit time vs days) for this specific use case. For high-throughput applications, the calculation would be different.
 
 #### 3. Proving System Maturity Risk is Manageable
 
@@ -158,11 +171,13 @@ Both implementations use simplified commitment schemes (Noir: Pedersen, Arkworks
 ### When Arkworks Might Be Preferred
 
 **Different teams might choose arkworks if**:
-1. **Existing Rust/arkworks expertise**: Team already maintains arkworks circuits, adding one more is lower friction than adopting Noir
-2. **Maximum control required**: Need to hand-tune constraint counts or use custom gadgets not available in Noir's stdlib
-3. **Groth16 non-negotiable**: Specific requirement for battle-tested Groth16 (e.g., regulatory or insurance requirements)
+1. **High-throughput requirements**: Generating thousands of proofs per day where 49x performance difference matters
+2. **Cost-sensitive on-chain storage**: Frequent on-chain proof submission where 127x size difference significantly impacts costs
+3. **Existing Rust/arkworks expertise**: Team already maintains arkworks circuits, adding one more is lower friction than adopting Noir
+4. **Maximum control required**: Need to hand-tune constraint counts or use custom gadgets not available in Noir's stdlib
+5. **Groth16 non-negotiable**: Specific requirement for battle-tested Groth16 (e.g., regulatory or insurance requirements)
 
-**But for THIS proof**: The simplicity of the statement means Noir's abstractions are not limiting. The ergonomic advantage dominates.
+**But for THIS proof** (infrequent attestations, simple statement): The simplicity of the statement means Noir's abstractions are not limiting, and the use case means performance differences don't matter. The ergonomic advantage dominates.
 
 ### Dual Implementation Strategy
 
@@ -183,11 +198,12 @@ Both implementations use simplified commitment schemes (Noir: Pedersen, Arkworks
 | Use Case | Choice | Rationale |
 |----------|--------|-----------|
 | **Prototype** | Noir | Faster development, easier iteration |
-| **Production (2026)** | Noir | Correctness assurance > marginal performance |
+| **Production (infrequent attestations)** | Noir | Correctness assurance > 49x performance gap for this use case |
+| **Production (high-throughput)** | Arkworks | 49x faster proving, 127x smaller proofs matter at scale |
 | **Production (fallback)** | Arkworks | If Noir stability concerns materialize |
 | **Audit/validation** | Both | Cross-validate specification correctness |
 
-**The deciding factor**: For a **privacy-preserving financial solvency constraint**, the ability to confidently audit the circuit in hours (Noir) outweighs any theoretical advantage of manual R1CS construction (arkworks).
+**The deciding factor**: For a **privacy-preserving financial solvency constraint with infrequent attestations**, the ability to confidently audit the circuit in hours (Noir) outweighs Groth16's significant performance advantages (arkworks). The 49x speed difference is objectively large but subjectively irrelevant for daily/weekly proofs.
 
 ## Non-Goals and Scope Boundaries
 
