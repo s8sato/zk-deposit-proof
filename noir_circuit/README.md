@@ -104,3 +104,18 @@ nargo info
 ```
 
 This will show the circuit size and complexity metrics.
+
+## Benchmarking
+
+To run benchmarks and collect performance metrics:
+
+```bash
+./bench.sh
+```
+
+This will measure:
+- Circuit complexity (gates, ACIR opcodes)
+- Artifact sizes (compiled circuit, witness, VK)
+- VK generation time
+
+**Note**: Full proving/verification benchmarks may require compatible toolchain versions. See `BENCHMARKS.md` for detailed results and interpretation.
